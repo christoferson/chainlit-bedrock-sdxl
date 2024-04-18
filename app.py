@@ -6,8 +6,43 @@ import random
 from PIL import Image
 import json
 import os
+from chainlit.input_widget import Select, Slider, Switch
+import logging
+import traceback
 
 bedrock_runtime = boto3.client('bedrock-runtime', region_name="us-east-1")
+
+
+async def setup_settings():
+
+    settings = await cl.ChatSettings(
+        [
+            
+            Slider(
+                id = "ConfigScale",
+                label = "Config Scale",
+                initial = 10,
+                min = 1,
+                max = 12,
+                step = 1,
+            ),
+        ]
+    ).send()
+
+    print("Save Settings: ", settings)
+
+    return settings
+
+@cl.on_chat_start
+async def main():
+
+    #session_id = str(uuid.uuid4())
+
+    #cl.user_session.set("session_id", session_id)
+    
+    settings = await setup_settings()
+
+    #await setup_agent(settings)
 
 @cl.on_message
 async def main(message: cl.Message):
@@ -23,25 +58,33 @@ async def main(message: cl.Message):
     style_preset = "photographic"
     cfg_scale = 12
 
-    msg = cl.Message(content="")
+    msg = cl.Message(content="Generating...")
 
     await msg.send()
 
-    #async with cl.Step(name="Model", type="llm", root=False) as step_llm:
+    async with cl.Step(name="Model", type="llm", root=False) as step_llm:
+        step_llm.input = msg.content
 
-    demo_sd_generate_text_to_image_xl_v1(model_id, message.content, negative, style_preset, cfg_scale)
-    
-    image = cl.Image(path="./output/img.png", name="image1", display="inline")
+        try:
+            
+            await generate_text_to_image(step_llm, model_id, message.content, negative, style_preset, cfg_scale)
+            
+            image = cl.Image(path="./output/img.png", name="image1", display="inline")
 
-    #await cl.Message(content=f"style_preset={style_preset}, cfg_scale={cfg_scale}", elements=[image]).send()
-    msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale}"
-    msg.elements = [image]
-    await msg.update()
+            msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale}"
+            msg.elements = [image]
+            await msg.update()
+
+        except Exception as e:
+            logging.error(traceback.format_exc())
+            await msg.stream_token(f"{e}")
+        finally:
+            await msg.send()
 
 
 
 # https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-diffusion-1-0-text-image.html
-def demo_sd_generate_text_to_image_xl_v1(model_id, prompt, negative_prompts, style_preset="comic-book", cfg_scale = 10):
+async def generate_text_to_image(step_llm : cl.Step, model_id, prompt, negative_prompts, style_preset="comic-book", cfg_scale = 10):
 
     print(f"Call demo_sd_generate_text_to_image_xl_v1 | style_preset={style_preset} | cfg_scale={cfg_scale}")
 
@@ -96,20 +139,21 @@ def demo_sd_generate_text_to_image_xl_v1(model_id, prompt, negative_prompts, sty
     #print(body)
 
     # 
-    print("Generating Image ...")
+    await step_llm.stream_token("Generating Image ...\n")
     response = bedrock_runtime.invoke_model(body=body, modelId=model_id)
 
     # 
     response_body = json.loads(response.get("body").read())
     response_image = base64_to_image(response_body["artifacts"][0].get("base64"))
 
-    # 
+    await step_llm.stream_token("Saving Image ...\n")
     response_image.save(OUTPUT_IMG_PATH)
     # 
     #with open("{}.json".format(OUTPUT_IMG_PATH), "w") as f:
     #    json.dump(config, f, ensure_ascii = False)
-
+    await step_llm.send()
     print("Complete")
+    
 
 ### Utilities
 
