@@ -3,6 +3,7 @@ Chainlit Bedrock Stable Diffusion XL
 
 chainlit init
 
+chainlit create-secret
 
 ##### Launch Locally
 

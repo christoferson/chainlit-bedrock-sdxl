@@ -1,5 +1,6 @@
 import chainlit as cl
 import boto3
+from botocore.config import Config
 import base64
 import io
 import random
@@ -10,7 +11,12 @@ from chainlit.input_widget import Select, Slider, Switch
 import logging
 import traceback
 
-bedrock_runtime = boto3.client('bedrock-runtime', region_name="us-east-1")
+AWS_REGION = os.environ["AWS_REGION"]
+AUTH_ADMIN_USR = os.environ["AUTH_ADMIN_USR"]
+AUTH_ADMIN_PWD = os.environ["AUTH_ADMIN_PWD"]
+
+config = Config(read_timeout=1000)
+bedrock_runtime = boto3.client('bedrock-runtime', region_name=AWS_REGION, config=config)
 
 
 async def setup_settings():
@@ -43,6 +49,31 @@ async def main():
     settings = await setup_settings()
 
     #await setup_agent(settings)
+
+
+@cl.on_settings_update
+async def setup_agent(settings):
+
+    knowledge_base_id = settings["KnowledgeBase"]
+    #knowledge_base_id = knowledge_base_id.split(" ", 1)[0]
+    
+    #llm_model_arn = "arn:aws:bedrock:{}::foundation-model/{}".format(AWS_REGION, settings["Model"])
+    #mode = settings["Mode"]
+    #strict = settings["Strict"]
+    #kb_retrieve_document_count = int(settings["RetrieveDocumentCount"])
+
+    #bedrock_model_id = settings["Model"]
+
+    inference_parameters = dict (
+        #temperature = settings["Temperature"],
+        #top_p = float(settings["TopP"]),
+        #top_k = int(settings["TopK"]),
+        #max_tokens_to_sample = int(settings["MaxTokenCount"]),
+        #stop_sequences =  [],
+    )
+
+
+    cl.user_session.set("inference_parameters", inference_parameters)
 
 @cl.on_message
 async def main(message: cl.Message):
