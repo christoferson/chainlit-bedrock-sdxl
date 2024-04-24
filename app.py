@@ -18,6 +18,7 @@ AUTH_ADMIN_PWD = os.environ["AUTH_ADMIN_PWD"]
 config = Config(read_timeout=1000)
 bedrock_runtime = boto3.client('bedrock-runtime', region_name=AWS_REGION, config=config)
 
+#Todo multiple samples: samples 
 
 async def setup_settings():
 
@@ -28,8 +29,30 @@ async def setup_settings():
                 id = "ConfigScale",
                 label = "Config Scale",
                 initial = 10,
-                min = 1,
-                max = 12,
+                min = 0,
+                max = 35,
+                step = 1,
+            ),
+            Slider(
+                id = "Steps",
+                label = "Steps",
+                initial = 30,
+                min = 10,
+                max = 50,
+                step = 1,
+            ),
+            Select(
+                id="StylePreset",
+                label="StylePreset",
+                values=["anime", "photographic"],
+                initial_index=1,
+            ),
+            Slider(
+                id = "Seed",
+                label = "Seed",
+                initial = 0,
+                min = 0,
+                max = 4294967295,
                 step = 1,
             ),
         ]
