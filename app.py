@@ -43,7 +43,7 @@ async def setup_settings():
             ),
             Select(
                 id="StylePreset",
-                label="StylePreset",
+                label="Style Preset",
                 values=["anime", "photographic"],
                 initial_index=1,
             ),
@@ -77,18 +77,8 @@ async def main():
 @cl.on_settings_update
 async def setup_agent(settings):
 
-    knowledge_base_id = settings["KnowledgeBase"]
-    #knowledge_base_id = knowledge_base_id.split(" ", 1)[0]
-    
-    #llm_model_arn = "arn:aws:bedrock:{}::foundation-model/{}".format(AWS_REGION, settings["Model"])
-    #mode = settings["Mode"]
-    #strict = settings["Strict"]
-    #kb_retrieve_document_count = int(settings["RetrieveDocumentCount"])
-
-    #bedrock_model_id = settings["Model"]
-
     inference_parameters = dict (
-        #temperature = settings["Temperature"],
+        style_preset = settings["StylePreset"],
         #top_p = float(settings["TopP"]),
         #top_k = int(settings["TopK"]),
         #max_tokens_to_sample = int(settings["MaxTokenCount"]),
@@ -102,6 +92,7 @@ async def setup_agent(settings):
 async def main(message: cl.Message):
 
     model_id = "stability.stable-diffusion-xl-v1"
+    inference_parameters = cl.user_session.get("inference_parameters") 
 
     negative=[
         "ugly", "tiling", "out of frame",
@@ -109,7 +100,7 @@ async def main(message: cl.Message):
         "underexposed", "overexposed", "bad art", "beginner", "amateur", "blurry", "draft", "grainy"
     ]
 
-    style_preset = "photographic"
+    style_preset = inference_parameters.get("style_preset")
     cfg_scale = 12
 
     msg = cl.Message(content="Generating...")
