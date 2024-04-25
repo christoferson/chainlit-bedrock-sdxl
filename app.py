@@ -79,7 +79,9 @@ async def setup_agent(settings):
 
     inference_parameters = dict (
         style_preset = settings["StylePreset"],
+        config_scale = settings["ConfigScale"],
         seed = settings["Seed"],
+        
         #top_p = float(settings["TopP"]),
         #top_k = int(settings["TopK"]),
         #max_tokens_to_sample = int(settings["MaxTokenCount"]),
@@ -102,7 +104,7 @@ async def main(message: cl.Message):
 
     style_preset = inference_parameters.get("style_preset")
     seed = int(inference_parameters.get("seed"))
-    cfg_scale = 12
+    cfg_scale = int(inference_parameters.get("config_scale"))
 
     msg = cl.Message(content="Generating...")
 
