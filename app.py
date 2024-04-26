@@ -80,12 +80,8 @@ async def setup_agent(settings):
     inference_parameters = dict (
         style_preset = settings["StylePreset"],
         config_scale = settings["ConfigScale"],
-        seed = settings["Seed"],
-        
-        #top_p = float(settings["TopP"]),
-        #top_k = int(settings["TopK"]),
-        #max_tokens_to_sample = int(settings["MaxTokenCount"]),
-        #stop_sequences =  [],
+        steps = settings["Steps"],
+        seed = settings["Seed"]
     )
 
     cl.user_session.set("inference_parameters", inference_parameters)
@@ -105,6 +101,7 @@ async def main(message: cl.Message):
     style_preset = inference_parameters.get("style_preset")
     seed = int(inference_parameters.get("seed"))
     cfg_scale = int(inference_parameters.get("config_scale"))
+    steps = int(inference_parameters.get("steps"))
 
     msg = cl.Message(content="Generating...")
 
@@ -115,12 +112,11 @@ async def main(message: cl.Message):
 
         try:
             
-            await generate_text_to_image(step_llm, model_id, message.content, negative, 
-                                         inference_parameters, style_preset, cfg_scale)
+            await generate_text_to_image(step_llm, model_id, message.content, negative, inference_parameters)
             
             image = cl.Image(path="./output/img.png", name="image1", display="inline")
 
-            msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale} seed={seed}"
+            msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale} steps={steps} seed={seed}"
             msg.elements = [image]
             await msg.update()
 
@@ -133,8 +129,12 @@ async def main(message: cl.Message):
 
 
 # https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-diffusion-1-0-text-image.html
-async def generate_text_to_image(step_llm : cl.Step, model_id, prompt, negative_prompts, inference_parameters, 
-                                 style_preset="comic-book", cfg_scale = 10):
+async def generate_text_to_image(step_llm : cl.Step, model_id, prompt, negative_prompts, inference_parameters):
+
+    style_preset = inference_parameters.get("style_preset")
+    seed = int(inference_parameters.get("seed"))
+    cfg_scale = int(inference_parameters.get("config_scale"))
+    steps = int(inference_parameters.get("steps"))
 
     print(f"Call demo_sd_generate_text_to_image_xl_v1 | style_preset={style_preset} | cfg_scale={cfg_scale}")
 
@@ -153,7 +153,7 @@ async def generate_text_to_image(step_llm : cl.Step, model_id, prompt, negative_
     if seed == 0:
         seed = random.randint(0, 4294967295)
         #inference_parameters["seed"] = seed
-    steps = 50 #150 #30 #50
+    #steps = #50 #150 #30 #50
     start_schedule = 0.6
     change_prompt = prompt
     size = 1024
@@ -188,8 +188,6 @@ async def generate_text_to_image(step_llm : cl.Step, model_id, prompt, negative_
             "samples": 1,
         }
     )
-
-    #print(body)
 
     # 
     await step_llm.stream_token("Generating Image ...\n")
