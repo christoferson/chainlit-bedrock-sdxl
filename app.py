@@ -56,6 +56,14 @@ async def setup_settings():
                 max = 4294967295,
                 step = 1,
             ),
+            Slider(
+                id = "Samples",
+                label = "Samples",
+                initial = 1,
+                min = 1,
+                max = 4,
+                step = 1,
+            ),
         ]
     ).send()
 
@@ -82,7 +90,8 @@ async def setup_agent(settings):
         style_preset = settings["StylePreset"],
         config_scale = settings["ConfigScale"],
         steps = settings["Steps"],
-        seed = settings["Seed"]
+        seed = settings["Seed"],
+        samples = settings["Samples"]
     )
 
     cl.user_session.set("inference_parameters", inference_parameters)
@@ -103,6 +112,7 @@ async def main(message: cl.Message):
     seed = int(inference_parameters.get("seed"))
     cfg_scale = int(inference_parameters.get("config_scale"))
     steps = int(inference_parameters.get("steps"))
+    samples = int(inference_parameters.get("samples"))
 
     msg = cl.Message(content="Generating...")
 
@@ -113,10 +123,11 @@ async def main(message: cl.Message):
 
         try:
             
-            image_path_list = await generate_text_to_image_v2(step_llm, model_id, message.content, negative, inference_parameters)
+            #image_path_list = await generate_text_to_image_v2(step_llm, model_id, message.content, negative, inference_parameters)
             
             msg.elements = []
-            for image_path in image_path_list:
+            for i in range(samples):
+                image_path = await generate_text_to_image_v3(step_llm, model_id, message.content, negative, inference_parameters, i+1)
                 image = cl.Image(path=image_path, name="image1", display="inline")
                 msg.elements.append(image)
 
@@ -217,6 +228,7 @@ async def generate_text_to_image_v2(step_llm : cl.Step, model_id, prompt, negati
     seed = int(inference_parameters.get("seed"))
     cfg_scale = int(inference_parameters.get("config_scale"))
     steps = int(inference_parameters.get("steps"))
+    samples = int(inference_parameters.get("samples"))
 
     print(f"Call generate_text_to_image_v2 | style_preset={style_preset} | cfg_scale={cfg_scale}")
 
@@ -266,7 +278,7 @@ async def generate_text_to_image_v2(step_llm : cl.Step, model_id, prompt, negati
             #"start_schedule": config["start_schedule"],
             "steps": config["steps"], # Generation step determines how many times the image is sampled. 10-50,50
             "style_preset": config["style_preset"],
-            "samples": 1,
+            "samples": samples,
         }
     )
 
@@ -293,6 +305,89 @@ async def generate_text_to_image_v2(step_llm : cl.Step, model_id, prompt, negati
 
     print("Complete")
     return image_path_list
+
+
+
+
+
+
+# https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-diffusion-1-0-text-image.html
+async def generate_text_to_image_v3(step_llm : cl.Step, model_id, prompt, negative_prompts, inference_parameters, idx : int) -> str:
+
+    style_preset = inference_parameters.get("style_preset")
+    seed = int(inference_parameters.get("seed"))
+    cfg_scale = int(inference_parameters.get("config_scale"))
+    steps = int(inference_parameters.get("steps"))
+
+    print(f"Call demo_sd_generate_text_to_image_xl_v1 | style_preset={style_preset} | cfg_scale={cfg_scale}")
+
+    print(f"PROMPT: {prompt}")
+    print(f"NEG_PROMPT: {negative_prompts}")
+
+    ####
+
+    #ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+    file_extension = ".png"
+    #OUTPUT_IMG_PATH = os.path.join(ROOT_DIR, "output/{}{}".format("img", file_extension))
+    OUTPUT_IMG_PATH = os.path.join("./output/{}-{}{}".format("img", idx, file_extension))
+    print("OUTPUT_IMG_PATH: " + OUTPUT_IMG_PATH)
+
+    seed = int(inference_parameters.get("seed"))
+    if seed == 0:
+        seed = random.randint(0, 4294967295)
+        #inference_parameters["seed"] = seed
+    #steps = #50 #150 #30 #50
+    start_schedule = 0.6
+    change_prompt = prompt
+    size = 1024
+
+    config = {
+        "filename": OUTPUT_IMG_PATH,
+        "seed": seed,
+        "change_prompt": change_prompt,
+        "steps": steps,
+        "cfg_scale": cfg_scale,
+        "start_schedule": start_schedule,
+        "style_preset": style_preset,
+        "size": size,
+        "negative_prompts": negative_prompts
+    }
+
+    # 
+    body = json.dumps(
+        {
+            "text_prompts": (
+                [{"text": config["change_prompt"], "weight": 1.0}]
+                + [{"text": negprompt, "weight": -1.0} for negprompt in negative_prompts]
+            ),
+            "cfg_scale": config["cfg_scale"], # Determines how much the final image portrays the prompt. Use a lower number to increase randomness in the generation. 0-35,7
+            #"clip_guidance_preset"
+            #"height": "1024",
+            #"width": "1024",
+            "seed": config["seed"], # The seed determines the initial noise setting.0-4294967295,0
+            #"start_schedule": config["start_schedule"],
+            "steps": config["steps"], # Generation step determines how many times the image is sampled. 10-50,50
+            "style_preset": config["style_preset"],
+            "samples": 1,
+        }
+    )
+
+    # 
+    await step_llm.stream_token("Generating Image ...\n")
+    response = bedrock_runtime.invoke_model(body=body, modelId=model_id)
+
+    # 
+    response_body = json.loads(response.get("body").read())
+    response_image = base64_to_image(response_body["artifacts"][0].get("base64"))
+
+    await step_llm.stream_token("Saving Image ...\n")
+    response_image.save(OUTPUT_IMG_PATH)
+    # 
+    #with open("{}.json".format(OUTPUT_IMG_PATH), "w") as f:
+    #    json.dump(config, f, ensure_ascii = False)
+    await step_llm.send()
+    print("Complete")
+    return OUTPUT_IMG_PATH
 
 ### Utilities
 
