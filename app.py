@@ -7,7 +7,7 @@ import random
 from PIL import Image
 import json
 import os
-from chainlit.input_widget import Select, Slider, Switch
+from chainlit.input_widget import Select, Slider, Tags
 import logging
 import traceback
 from typing import List
@@ -22,6 +22,12 @@ bedrock_runtime = boto3.client('bedrock-runtime', region_name=AWS_REGION, config
 #Todo multiple samples: samples 
 
 async def setup_settings():
+
+    negative=[
+        "ugly", "tiling", "out of frame",
+        "disfigured", "deformed", "bad anatomy", "cut off", "low contrast", 
+        "underexposed", "overexposed", "bad art", "beginner", "amateur", "blurry", "draft", "grainy"
+    ]
 
     settings = await cl.ChatSettings(
         [
@@ -64,6 +70,7 @@ async def setup_settings():
                 max = 4,
                 step = 1,
             ),
+            Tags(id="NegativePrompts", label="Negative Prompts", initial=negative),
         ]
     ).send()
 
@@ -91,7 +98,8 @@ async def setup_agent(settings):
         config_scale = settings["ConfigScale"],
         steps = settings["Steps"],
         seed = settings["Seed"],
-        samples = settings["Samples"]
+        samples = settings["Samples"],
+        negative_prompts = settings["NegativePrompts"],
     )
 
     cl.user_session.set("inference_parameters", inference_parameters)
@@ -101,18 +109,12 @@ async def main(message: cl.Message):
 
     model_id = "stability.stable-diffusion-xl-v1"
     inference_parameters = cl.user_session.get("inference_parameters") 
-
-    negative=[
-        "ugly", "tiling", "out of frame",
-        "disfigured", "deformed", "bad anatomy", "cut off", "low contrast", 
-        "underexposed", "overexposed", "bad art", "beginner", "amateur", "blurry", "draft", "grainy"
-    ]
-
     style_preset = inference_parameters.get("style_preset")
     seed = int(inference_parameters.get("seed"))
     cfg_scale = int(inference_parameters.get("config_scale"))
     steps = int(inference_parameters.get("steps"))
     samples = int(inference_parameters.get("samples"))
+    negative_prompts = inference_parameters.get("negative_prompts")
 
     msg = cl.Message(content="Generating...")
 
@@ -130,8 +132,8 @@ async def main(message: cl.Message):
             
             msg.elements = []
             for i in range(samples):
-                image_path = await generate_text_to_image_v3(step_llm, model_id, message.content, negative, inference_parameters, i+1)
-                image = cl.Image(path=image_path, name="image1", display="inline", size="large")
+                image_path = await generate_text_to_image_v3(step_llm, model_id, message.content, negative_prompts, inference_parameters, i+1)
+                image = cl.Image(path=image_path, name="image1", display="inline") #size="large"
 
                 msg.elements.append(image)
                 await msg.update()
@@ -324,7 +326,7 @@ async def generate_text_to_image_v3(step_llm : cl.Step, model_id, prompt, negati
     cfg_scale = int(inference_parameters.get("config_scale"))
     steps = int(inference_parameters.get("steps"))
 
-    print(f"Call demo_sd_generate_text_to_image_xl_v1 | style_preset={style_preset} | cfg_scale={cfg_scale}")
+    print(f"Call demo_sd_generate_text_to_image_xl_v1 | style_preset={style_preset} | cfg_scale={cfg_scale} | neg={negative_prompts}")
 
     print(f"PROMPT: {prompt}")
     print(f"NEG_PROMPT: {negative_prompts}")
