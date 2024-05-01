@@ -122,16 +122,21 @@ async def main(message: cl.Message):
         step_llm.input = msg.content
 
         try:
+
+            msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale} steps={steps} seed={seed}"
+            await msg.update()
             
             #image_path_list = await generate_text_to_image_v2(step_llm, model_id, message.content, negative, inference_parameters)
             
             msg.elements = []
             for i in range(samples):
                 image_path = await generate_text_to_image_v3(step_llm, model_id, message.content, negative, inference_parameters, i+1)
-                image = cl.Image(path=image_path, name="image1", display="inline")
-                msg.elements.append(image)
+                image = cl.Image(path=image_path, name="image1", display="inline", size="large")
 
-            msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale} steps={steps} seed={seed}"
+                msg.elements.append(image)
+                await msg.update()
+
+            #msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale} steps={steps} seed={seed}"
             await msg.update()
 
         except Exception as e:
@@ -378,7 +383,8 @@ async def generate_text_to_image_v3(step_llm : cl.Step, model_id, prompt, negati
 
     # 
     response_body = json.loads(response.get("body").read())
-    response_image = base64_to_image(response_body["artifacts"][0].get("base64"))
+    response_image_base64 = response_body["artifacts"][0].get("base64")
+    response_image = base64_to_image(response_image_base64)
 
     await step_llm.stream_token("Saving Image ...\n")
     response_image.save(OUTPUT_IMG_PATH)
@@ -388,6 +394,8 @@ async def generate_text_to_image_v3(step_llm : cl.Step, model_id, prompt, negati
     await step_llm.send()
     print("Complete")
     return OUTPUT_IMG_PATH
+
+
 
 ### Utilities
 
