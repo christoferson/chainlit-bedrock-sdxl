@@ -10,7 +10,7 @@ import os
 from chainlit.input_widget import Select, Slider, Tags
 import logging
 import traceback
-from typing import List
+from typing import Optional, List
 
 AWS_REGION = os.environ["AWS_REGION"]
 AUTH_ADMIN_USR = os.environ["AUTH_ADMIN_USR"]
@@ -19,7 +19,16 @@ AUTH_ADMIN_PWD = os.environ["AUTH_ADMIN_PWD"]
 config = Config(read_timeout=1000)
 bedrock_runtime = boto3.client('bedrock-runtime', region_name=AWS_REGION, config=config)
 
-#Todo multiple samples: samples 
+@cl.password_auth_callback
+def auth_callback(username: str, password: str) -> Optional[cl.User]:
+  # Fetch the user matching username from your database
+  # and compare the hashed password with the value stored in the database
+  if (username, password) == (AUTH_ADMIN_USR, AUTH_ADMIN_PWD):
+    return cl.User(identifier=AUTH_ADMIN_USR, metadata={"role": "admin", "provider": "credentials"})
+  #elif (username, password) == (AUTH_USER_USR, AUTH_USER_PWD):
+  #  return cl.User(identifier=AUTH_USER_USR, metadata={"role": "user", "provider": "credentials"})
+  else:
+    return None
 
 async def setup_settings():
 
