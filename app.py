@@ -11,6 +11,7 @@ from chainlit.input_widget import Select, Slider, Tags
 import logging
 import traceback
 from typing import Optional, List
+import profiles.app_profile_txt2img
 
 AWS_REGION = os.environ["AWS_REGION"]
 AUTH_ADMIN_USR = os.environ["AUTH_ADMIN_USR"]
@@ -29,6 +30,19 @@ def auth_callback(username: str, password: str) -> Optional[cl.User]:
   #  return cl.User(identifier=AUTH_USER_USR, metadata={"role": "user", "provider": "credentials"})
   else:
     return None
+
+
+@cl.set_chat_profiles
+async def chat_profile():
+    #if current_user.metadata["role"] != "ADMIN":
+    #    return None
+    return [
+        cl.ChatProfile(
+            name="TXT2IMG",
+            markdown_description="Text to Image",
+            icon="https://picsum.photos/250",
+        ),
+    ]
 
 async def setup_settings():
 
