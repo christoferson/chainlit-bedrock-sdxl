@@ -76,45 +76,12 @@ async def setup_agent(settings):
 @cl.on_message
 async def main(message: cl.Message):
 
-    model_id = "stability.stable-diffusion-xl-v1"
-    inference_parameters = cl.user_session.get("inference_parameters") 
-    style_preset = inference_parameters.get("style_preset")
-    seed = int(inference_parameters.get("seed"))
-    cfg_scale = int(inference_parameters.get("config_scale"))
-    steps = int(inference_parameters.get("steps"))
-    samples = int(inference_parameters.get("samples"))
-    negative_prompts = inference_parameters.get("negative_prompts")
+    chat_profile = cl.user_session.get("chat_profile")
 
-    msg = cl.Message(content="Generating...")
-
-    await msg.send()
-
-    async with cl.Step(name="Model", type="llm", root=False) as step_llm:
-        step_llm.input = msg.content
-
-        try:
-
-            msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale} steps={steps} seed={seed}"
-            await msg.update()
-            
-            #image_path_list = await generate_text_to_image_v2(step_llm, model_id, message.content, negative, inference_parameters)
-            
-            msg.elements = []
-            for i in range(samples):
-                image_path = await generate_text_to_image_v3(step_llm, model_id, message.content, negative_prompts, inference_parameters, i+1)
-                image = cl.Image(path=image_path, name="image1", display="inline") #size="large"
-
-                msg.elements.append(image)
-                await msg.update()
-
-            #msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale} steps={steps} seed={seed}"
-            await msg.update()
-
-        except Exception as e:
-            logging.error(traceback.format_exc())
-            await msg.stream_token(f"{e}")
-        finally:
-            await msg.send()
+    if chat_profile == "TXT2IMG":
+        await profiles.app_profile_txt2img.on_message(message)
+    else:
+       raise ValueError(f"Unsupported Profile. {chat_profile}")
 
 
 # https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-diffusion-1-0-text-image.html
