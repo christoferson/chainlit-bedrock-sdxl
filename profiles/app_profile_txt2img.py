@@ -1,7 +1,7 @@
 import os
 import boto3
 import chainlit as cl
-from chainlit.input_widget import Select, Slider
+from chainlit.input_widget import Select, Slider, Tags
 import traceback
 import logging
 
@@ -12,42 +12,80 @@ AUTH_ADMIN_PWD = os.environ["AUTH_ADMIN_PWD"]
 bedrock = boto3.client("bedrock", region_name=AWS_REGION)
 bedrock_runtime = boto3.client('bedrock-runtime', region_name=AWS_REGION)
 
+
 async def on_chat_start():
     
-    model_ids = ["anthropic.claude-3-sonnet-20240229-v1:0"]
+
+    negative=[
+        "ugly", "tiling", "out of frame",
+        "disfigured", "deformed", "bad anatomy", "cut off", "low contrast", 
+        "underexposed", "overexposed", "bad art", "beginner", "amateur", "blurry", "draft", "grainy"
+    ]
+
     settings = await cl.ChatSettings(
         [
+            
+            Slider(
+                id = "ConfigScale",
+                label = "Config Scale",
+                initial = 10,
+                min = 0,
+                max = 35,
+                step = 1,
+            ),
+            Slider(
+                id = "Steps",
+                label = "Steps",
+                initial = 30,
+                min = 10,
+                max = 50,
+                step = 1,
+            ),
             Select(
-                id="Model",
-                label="Amazon Bedrock - Model",
-                values=model_ids,
-                initial_index=model_ids.index("anthropic.claude-3-sonnet-20240229-v1:0"),
-                
-            )
+                id="StylePreset",
+                label="Style Preset",
+                values=["anime", "photographic"],
+                initial_index=1,
+            ),
+            Slider(
+                id = "Seed",
+                label = "Seed",
+                initial = 0,
+                min = 0,
+                max = 4294967295,
+                step = 1,
+            ),
+            Slider(
+                id = "Samples",
+                label = "Samples",
+                initial = 1,
+                min = 1,
+                max = 4,
+                step = 1,
+            ),
+            Tags(id="NegativePrompts", label="Negative Prompts", initial=negative),
         ]
     ).send()
+
+    print("Save Settings: ", settings)
+
     await on_settings_update(settings)
 
 #@cl.on_settings_update
 async def on_settings_update(settings):
 
-    bedrock_model_id = settings["Model"]
-
-    application_options = dict (
-        option_terse = False,
-        option_strict = False
-    )
-
     inference_parameters = dict (
-        temperature = settings["Temperature"],
-        top_p = float(settings["TopP"]),
-        top_k = int(settings["TopK"]),
-        max_tokens_to_sample = int(settings["MaxTokenCount"]),
-        system_message = "You are a helpful assistant.",
-        stop_sequences =  []
+        style_preset = settings["StylePreset"],
+        config_scale = settings["ConfigScale"],
+        steps = settings["Steps"],
+        seed = settings["Seed"],
+        samples = settings["Samples"],
+        negative_prompts = settings["NegativePrompts"],
     )
 
-    cl.user_session.set("bedrock_model_strategy", model_strategy)
+    cl.user_session.set("inference_parameters", inference_parameters)
+
+
     
 
 #@cl.on_message

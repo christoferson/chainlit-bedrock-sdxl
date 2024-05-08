@@ -42,90 +42,36 @@ async def chat_profile():
             markdown_description="Text to Image",
             icon="https://picsum.photos/250",
         ),
+        cl.ChatProfile(
+            name="TEMP",
+            markdown_description="Text to Image",
+            icon="https://picsum.photos/250",
+        ),
     ]
 
-async def setup_settings():
-
-    negative=[
-        "ugly", "tiling", "out of frame",
-        "disfigured", "deformed", "bad anatomy", "cut off", "low contrast", 
-        "underexposed", "overexposed", "bad art", "beginner", "amateur", "blurry", "draft", "grainy"
-    ]
-
-    settings = await cl.ChatSettings(
-        [
-            
-            Slider(
-                id = "ConfigScale",
-                label = "Config Scale",
-                initial = 10,
-                min = 0,
-                max = 35,
-                step = 1,
-            ),
-            Slider(
-                id = "Steps",
-                label = "Steps",
-                initial = 30,
-                min = 10,
-                max = 50,
-                step = 1,
-            ),
-            Select(
-                id="StylePreset",
-                label="Style Preset",
-                values=["anime", "photographic"],
-                initial_index=1,
-            ),
-            Slider(
-                id = "Seed",
-                label = "Seed",
-                initial = 0,
-                min = 0,
-                max = 4294967295,
-                step = 1,
-            ),
-            Slider(
-                id = "Samples",
-                label = "Samples",
-                initial = 1,
-                min = 1,
-                max = 4,
-                step = 1,
-            ),
-            Tags(id="NegativePrompts", label="Negative Prompts", initial=negative),
-        ]
-    ).send()
-
-    print("Save Settings: ", settings)
-
-    return settings
 
 @cl.on_chat_start
 async def main():
 
-    #session_id = str(uuid.uuid4())
+    user = cl.user_session.get("user")
+    chat_profile = cl.user_session.get("chat_profile")
+    #await cl.Message(content=f"starting chat with {user.identifier} using the {chat_profile} chat profile").send()
 
-    #cl.user_session.set("session_id", session_id)
-    
-    settings = await setup_settings()
-
-    await setup_agent(settings)
+    if chat_profile == "TXT2IMG":
+        await profiles.app_profile_txt2img.on_chat_start()
+    else:
+       raise ValueError(f"Unsupported Profile. {chat_profile}")
 
 
 @cl.on_settings_update
 async def setup_agent(settings):
 
-    inference_parameters = dict (
-        style_preset = settings["StylePreset"],
-        config_scale = settings["ConfigScale"],
-        steps = settings["Steps"],
-        seed = settings["Seed"],
-        samples = settings["Samples"],
-        negative_prompts = settings["NegativePrompts"],
-    )
+    chat_profile = cl.user_session.get("chat_profile")
 
-    cl.user_session.set("inference_parameters", inference_parameters)
+    if chat_profile == "TXT2IMG":
+        await profiles.app_profile_txt2img.on_settings_update(settings)
+    else:
+       raise ValueError(f"Unsupported Profile. {chat_profile}")
 
 @cl.on_message
 async def main(message: cl.Message):
