@@ -17,9 +17,7 @@ AUTH_ADMIN_PWD = os.environ["AUTH_ADMIN_PWD"]
 bedrock = boto3.client("bedrock", region_name=AWS_REGION)
 bedrock_runtime = boto3.client('bedrock-runtime', region_name=AWS_REGION)
 
-
 async def on_chat_start():
-    
 
     negative=[
         "ugly", "tiling", "out of frame",
@@ -69,6 +67,12 @@ async def on_chat_start():
                 step = 1,
             ),
             Tags(id="NegativePrompts", label="Negative Prompts", initial=negative),
+            Select(
+                id="IconDisplaySize",
+                label="Icon Display Size",
+                values=["small", "medium", "large"],
+                initial_index=1,
+            ),
         ]
     ).send()
 
@@ -86,12 +90,10 @@ async def on_settings_update(settings):
         seed = settings["Seed"],
         samples = settings["Samples"],
         negative_prompts = settings["NegativePrompts"],
+        icon_display_size = settings["IconDisplaySize"],
     )
 
     cl.user_session.set("inference_parameters", inference_parameters)
-
-
-    
 
 #@cl.on_message
 async def on_message(message: cl.Message):
@@ -104,6 +106,7 @@ async def on_message(message: cl.Message):
     steps = int(inference_parameters.get("steps"))
     samples = int(inference_parameters.get("samples"))
     negative_prompts = inference_parameters.get("negative_prompts")
+    icon_display_size = inference_parameters.get("icon_display_size")
 
     msg = cl.Message(content="Generating...")
 
@@ -122,7 +125,7 @@ async def on_message(message: cl.Message):
             msg.elements = []
             for i in range(samples):
                 image_path = await generate_text_to_image_v3(step_llm, model_id, message.content, negative_prompts, inference_parameters, i+1)
-                image = cl.Image(path=image_path, name="image1", display="inline") #size="large"
+                image = cl.Image(path=image_path, name="image1", display="inline", size=icon_display_size) #size="large"
 
                 msg.elements.append(image)
                 await msg.update()
@@ -152,9 +155,7 @@ async def generate_text_to_image_v3(step_llm : cl.Step, model_id, prompt, negati
 
     ####
 
-    #ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
     file_extension = ".png"
-    #OUTPUT_IMG_PATH = os.path.join(ROOT_DIR, "output/{}{}".format("img", file_extension))
     OUTPUT_IMG_PATH = os.path.join("./output/{}-{}{}".format("img", idx, file_extension))
     print("OUTPUT_IMG_PATH: " + OUTPUT_IMG_PATH)
 
