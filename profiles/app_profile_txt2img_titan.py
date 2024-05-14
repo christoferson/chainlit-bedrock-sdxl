@@ -31,18 +31,10 @@ async def on_chat_start():
             Slider(
                 id = "ConfigScale",
                 label = "Config Scale",
-                initial = 10,
-                min = 0,
-                max = 35,
-                step = 1,
-            ),
-            Slider(
-                id = "Steps",
-                label = "Steps",
-                initial = 30,
-                min = 10,
-                max = 50,
-                step = 1,
+                initial = 8.0,
+                min = 1.1,
+                max = 10.0,
+                step = 0.1,
             ),
             Select(
                 id="StylePreset",
@@ -50,12 +42,18 @@ async def on_chat_start():
                 values=["anime", "photographic"],
                 initial_index=1,
             ),
+            Select(
+                id="ImageQuality",
+                label="Image Quality",
+                values=["premium", "standard"],
+                initial_index=0,
+            ),
             Slider(
                 id = "Seed",
                 label = "Seed",
                 initial = 0,
                 min = 0,
-                max = 4294967295,
+                max = 2147483646,
                 step = 1,
             ),
             Slider(
@@ -86,7 +84,8 @@ async def on_settings_update(settings):
     inference_parameters = dict (
         style_preset = settings["StylePreset"],
         config_scale = settings["ConfigScale"],
-        steps = settings["Steps"],
+        #steps = settings["Steps"],
+        image_quality = settings["ImageQuality"],
         seed = settings["Seed"],
         samples = settings["Samples"],
         negative_prompts = settings["NegativePrompts"],
@@ -102,8 +101,9 @@ async def on_message(message: cl.Message):
     inference_parameters = cl.user_session.get("inference_parameters") 
     style_preset = inference_parameters.get("style_preset")
     seed = int(inference_parameters.get("seed"))
-    cfg_scale = int(inference_parameters.get("config_scale"))
-    steps = int(inference_parameters.get("steps"))
+    cfg_scale = float(inference_parameters.get("config_scale"))
+    #steps = int(inference_parameters.get("steps"))
+    image_quality = inference_parameters.get("image_quality")
     samples = int(inference_parameters.get("samples"))
     negative_prompts = inference_parameters.get("negative_prompts")
     icon_display_size = inference_parameters.get("icon_display_size")
@@ -117,7 +117,7 @@ async def on_message(message: cl.Message):
 
         try:
 
-            msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale} steps={steps} seed={seed}"
+            msg.content = f"style_preset={style_preset}, cfg_scale={cfg_scale} image_quality={image_quality} seed={seed}"
             await msg.update()
             
             #image_path_list = await generate_text_to_image_v2(step_llm, model_id, message.content, negative, inference_parameters)
@@ -145,8 +145,9 @@ async def generate_text_to_image_v3(step_llm : cl.Step, model_id, prompt, negati
 
     style_preset = inference_parameters.get("style_preset")
     seed = int(inference_parameters.get("seed"))
-    cfg_scale = int(inference_parameters.get("config_scale"))
-    steps = int(inference_parameters.get("steps"))
+    cfg_scale = float(inference_parameters.get("config_scale"))
+    image_quality = inference_parameters.get("image_quality")
+    #steps = int(inference_parameters.get("steps"))
 
     print(f"Call demo_sd_generate_text_to_image_xl_v1 | style_preset={style_preset} | cfg_scale={cfg_scale} | neg={negative_prompts}")
 
@@ -161,7 +162,7 @@ async def generate_text_to_image_v3(step_llm : cl.Step, model_id, prompt, negati
 
     seed = int(inference_parameters.get("seed"))
     if seed == 0:
-        seed = random.randint(0, 4294967295)
+        seed = random.randint(0, 2147483646)
         #inference_parameters["seed"] = seed
     #steps = #50 #150 #30 #50
     start_schedule = 0.6
@@ -172,7 +173,7 @@ async def generate_text_to_image_v3(step_llm : cl.Step, model_id, prompt, negati
         "filename": OUTPUT_IMG_PATH,
         "seed": seed,
         "change_prompt": change_prompt,
-        "steps": steps,
+        #"steps": steps,
         "cfg_scale": cfg_scale,
         "start_schedule": start_schedule,
         "style_preset": style_preset,
@@ -181,24 +182,24 @@ async def generate_text_to_image_v3(step_llm : cl.Step, model_id, prompt, negati
     }
 
     # 
-
+    negative_prompts_text = str(" ".join(negative_prompts))
     body = json.dumps(
         {
             "taskType": "TEXT_IMAGE",
             "textToImageParams": {
                 "text": config["change_prompt"],
-                #"negativeText": negative_prompts,
+                "negativeText": f"{negative_prompts_text}",
             },
             "imageGenerationConfig": {
                 "cfgScale": config["cfg_scale"], #8, #Range: 1.0 (exclusive) to 10.0
                 "seed": config["seed"], #Range: 0 to 214783647
-                "quality": "premium", #quality, #Options: standard/premium
+                "quality": image_quality, #quality, #Options: standard/premium
                 "width": 1024,
                 "height": 1024,
                 "numberOfImages": 1, #Range: 1 to 5
                 #"stepSize": 500,
             }
-        }
+        }, indent=3
     )
 
     print(body)
