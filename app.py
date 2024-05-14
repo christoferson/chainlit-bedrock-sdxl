@@ -12,6 +12,7 @@ import logging
 import traceback
 from typing import Optional, List
 import profiles.app_profile_txt2img
+import profiles.app_profile_txt2img_titan
 
 AWS_REGION = os.environ["AWS_REGION"]
 AUTH_ADMIN_USR = os.environ["AUTH_ADMIN_USR"]
@@ -43,8 +44,8 @@ async def chat_profile():
             icon="https://picsum.photos/250",
         ),
         cl.ChatProfile(
-            name="TEMP",
-            markdown_description="Text to Image",
+            name="TITAN-TXT2IMG",
+            markdown_description="Titan - Text to Image",
             icon="https://picsum.photos/250",
         ),
     ]
@@ -59,6 +60,8 @@ async def main():
 
     if chat_profile == "TXT2IMG":
         await profiles.app_profile_txt2img.on_chat_start()
+    elif chat_profile == "TITAN-TXT2IMG":
+        await profiles.app_profile_txt2img_titan.on_chat_start()
     else:
        raise ValueError(f"Unsupported Profile. {chat_profile}")
 
@@ -70,6 +73,8 @@ async def setup_agent(settings):
 
     if chat_profile == "TXT2IMG":
         await profiles.app_profile_txt2img.on_settings_update(settings)
+    elif chat_profile == "TITAN-TXT2IMG":
+        await profiles.app_profile_txt2img_titan.on_settings_update(settings)
     else:
        raise ValueError(f"Unsupported Profile. {chat_profile}")
 
@@ -80,6 +85,8 @@ async def main(message: cl.Message):
 
     if chat_profile == "TXT2IMG":
         await profiles.app_profile_txt2img.on_message(message)
+    elif chat_profile == "TITAN-TXT2IMG":
+        await profiles.app_profile_txt2img_titan.on_message(message)
     else:
        raise ValueError(f"Unsupported Profile. {chat_profile}")
 
